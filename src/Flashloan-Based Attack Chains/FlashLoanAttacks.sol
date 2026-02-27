@@ -221,7 +221,7 @@ contract PriceBasedLending {
         tokenCollateral[msg.sender] += tokenAmount;
     }
     
-    // ❌ 使用AMM的即时价格
+    // 使用AMM的即时价格
     function borrow(uint256 amount) external {
         uint256 collateralValue = getCollateralValue(msg.sender);
         
@@ -361,7 +361,7 @@ contract ReentrantVault {
         balances[msg.sender] += msg.value;
     }
     
-    // ❌ 重入漏洞
+    // 重入漏洞
     function withdraw(uint256 amount) external {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         
@@ -775,7 +775,7 @@ contract ProtocolC_CollateralLending {
     }
     
     function borrow(uint256 amount) external {
-        // ❌ 使用vault的份额价值作为抵押
+        // 使用vault的份额价值作为抵押
         uint256 collateralValue = vault.getShareValue(
             vaultSharesCollateral[msg.sender]
         );
@@ -953,7 +953,7 @@ contract BalancerStylePool {
     function exitPool(uint256 bptAmount) external {
         require(bptBalance[msg.sender] >= bptAmount, "Insufficient BPT");
         
-        // ❌ 先减少BPT
+        // 先减少BPT
         bptBalance[msg.sender] -= bptAmount;
         totalBPT -= bptAmount;
         
@@ -961,10 +961,10 @@ contract BalancerStylePool {
         uint256 amount0 = (bptAmount * balances[0]) / totalBPT;
         uint256 amount1 = (bptAmount * balances[1]) / totalBPT;
         
-        // ❌ 转账（可能触发重入）
+        // 转账（可能触发重入）
         payable(msg.sender).transfer(amount0);
         
-        // ❌ 最后更新余额
+        // 最后更新余额
         balances[0] -= amount0;
         balances[1] -= amount1;
     }
