@@ -16,7 +16,6 @@ import "forge-std/console.sol";
  * 5. ERC3156 Flash Mint（闪电铸币）
  * 6. Cross-Protocol Composability Abuse（跨协议组合滥用）
  * 
- * 这是你Balancer研究的最后一块拼图！
  * Flash Loan + Precision Loss + Read-only Reentrancy = 完整攻击
  */
 
