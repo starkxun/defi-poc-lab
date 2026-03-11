@@ -389,7 +389,7 @@ contract JITVulnerableAMM {
         liquidity[msg.sender] = totalLiquidity;
     }
     
-    // ❌ 可以在同一区块内添加和移除流动性
+    //  可以在同一区块内添加和移除流动性
     function addLiquidity(uint256 amount0, uint256 amount1) 
         external 
         payable 

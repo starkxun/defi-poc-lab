@@ -968,7 +968,7 @@ contract BalancerStylePool {
         balances[1] -= amount1;
     }
     
-    // ✅ View函数：其他协议会调用
+    // View函数：其他协议会调用
     function getBPTRate() external view returns (uint256) {
         if (totalBPT == 0) return 1e18;
         return ((balances[0] + balances[1]) * 1e18) / totalBPT;
