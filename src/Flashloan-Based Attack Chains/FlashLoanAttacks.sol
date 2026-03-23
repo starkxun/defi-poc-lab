@@ -86,32 +86,49 @@ interface IFlashLoanReceiver {
     ) external;
 }
 
+interface IProfitSource {
+    function payProfit(address payable to, uint256 amount) external;
+}
+
+// 简单的模拟利润合约，测试里为它转账，然后攻击合约会从它那里接收利润
+contract ProfitMock {
+    receive() external payable {}
+    function payProfit(address payable to, uint256 amount) external {
+        to.transfer(amount);
+    }
+}
+
+
+
 /**
  * @title 基础闪电贷攻击示例
  */
 contract BasicFlashLoanAttack is IFlashLoanReceiver {
     SimpleFlashLoanProvider public flashLoanProvider;
+    address payable public beneficiary;
+    address public profitSource;
     
-    constructor(address payable _provider) {
+    constructor (address payable _provider, address _profitSource) {
         flashLoanProvider = SimpleFlashLoanProvider(_provider);
+        profitSource = _profitSource;
     }
     
-    function attack() external {
-        console.log("\n=== Basic Flash Loan Attack ===");
-        console.log("Attacker balance before:", address(this).balance);
-        
+    function attack(address payable _beneficiary) external {
+        // 使用外部传入的地址作为受益人（避免向测试合约转账导致回退）
+        beneficiary = _beneficiary;
+
+        console.log("attack balance before: ", address(this).balance);
+
         uint256 loanAmount = 1000 ether;
-        console.log("Requesting flash loan:", loanAmount);
+        console.log("Requesting floa loan:", loanAmount);
+
+        flashLoanProvider.flashLoan(address(this), loanAmount, "");
+
+        uint256 finalBalance = address(this).balance + beneficiary.balance;
         
-        // 发起闪电贷
-        flashLoanProvider.flashLoan(
-            address(this),
-            loanAmount,
-            ""
-        );
-        
-        console.log("Attacker balance after:", address(this).balance);
+        console.log("Attacker balance after: ", finalBalance);
     }
+
     
     // 闪电贷回调
     function executeOperation(
@@ -121,25 +138,27 @@ contract BasicFlashLoanAttack is IFlashLoanReceiver {
         address initiator,
         bytes calldata params
     ) external override {
-        console.log("\n=== In Flash Loan Callback ===");
-        console.log("Received:", amount);
-        console.log("Fee:", fee);
-        console.log("Must repay:", amount + fee);
-        
-        // 这里执行攻击逻辑
-        // 例如：操纵价格、套利、清算等
-        
-        console.log("\nSimulating profitable operation...");
-        // 假设我们通过某种方式获利
+
+        // 模拟从外部收益源获得盈利并把盈利发到当前合约
         uint256 profit = 10 ether;
-        
-        // 还款
+        if (profit > 0 && profitSource != address(0)) {
+            IProfitSource(profitSource).payProfit(payable(address(this)), profit);
+        }
+
         uint256 repayAmount = amount + fee;
         payable(pool).transfer(repayAmount);
-        
-        console.log("Repaid:", repayAmount);
-        console.log("Profit:", profit);
+
+        console.log("Repaid: ", repayAmount);
+        console.log("Profit ", profit);
+
+        // 将盈利转给受益人（发起 attack() 的外部账号）
+        require(beneficiary != address(0), "No beneficiary set");
+        require(address(this).balance >= profit, "Insufficient profit balance");
+        (bool sent, ) = beneficiary.call{value: profit}("");
+        require(sent, "Profit transfer failed");
+
     }
+
     
     receive() external payable {}
 }
@@ -1077,6 +1096,7 @@ contract CompleteBalancerAttack is IFlashLoanReceiver {
 
 contract FlashLoanAttackTest is Test {
     SimpleFlashLoanProvider public provider;
+    ProfitMock public pm;
     SecondFlashLoanProvider public provider2;
     VulnerableAMM public amm;
     PriceBasedLending public lending;
@@ -1087,6 +1107,9 @@ contract FlashLoanAttackTest is Test {
         // 设置闪电贷提供者
         provider = new SimpleFlashLoanProvider();
         vm.deal(address(provider), 10000 ether);
+
+        pm = new ProfitMock();
+        vm.deal(address(pm), 10 ether);
         
         provider2 = new SecondFlashLoanProvider();
         vm.deal(address(provider2), 5000 ether);
@@ -1107,10 +1130,11 @@ contract FlashLoanAttackTest is Test {
     }
     
     function testBasicFlashLoan() public {
-        BasicFlashLoanAttack attacker = new BasicFlashLoanAttack(payable(address(provider)));
+        BasicFlashLoanAttack attacker = new BasicFlashLoanAttack(payable(address(provider)), address(pm));
         vm.deal(address(attacker), 1 ether);
-        
-        attacker.attack();
+
+        address payable beneficiary = payable(vm.addr(1));
+        attacker.attack(beneficiary);
     }
     
     function testPriceManipulation() public {
