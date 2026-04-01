@@ -104,6 +104,7 @@ contract MockERC20 {
  */
 contract VulnerableBridgeReplay {
     MockERC20 public token;
+    // 这里的 relayer 可以理解为 跨链桥的签字人/公证人
     address   public relayer;
 
     //  没有 processedMessages 映射来记录已处理的消息
